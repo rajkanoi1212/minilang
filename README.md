@@ -72,6 +72,21 @@ python main.py
 10
 ```
 
+## Browser playground
+
+`web/index.html` is a live playground — write MiniLang code, run it, and
+watch the lexer's actual token stream update as you type. No build step,
+no dependencies: it's a JavaScript port of the same lexer/parser/interpreter
+pipeline as the Python version, so what you see running in the browser is
+the same architecture described above, not a simplified stand-in.
+
+```bash
+cd web && python3 -m http.server 8000
+# then open http://localhost:8000
+```
+
+Or just double-click `web/index.html` — it works opened directly as a file too.
+
 ## Example programs
 
 - [`examples/basics.ml`](examples/basics.ml) — variables, arithmetic, conditionals, loops

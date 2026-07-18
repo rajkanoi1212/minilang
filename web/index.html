@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiniLang Playground</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>MiniLang<span class="cursor"></span></h1>
+    <span class="tagline">a language interpreter, running live in your browser</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/rajkanoi1212/minilang" target="_blank" rel="noopener">Source →</a>
+  </div>
+</header>
+
+<main>
+  <section class="pane">
+    <div class="pane-header">
+      <span>editor.ml</span>
+      <select id="examples">
+        <option value="basics">Basics</option>
+        <option value="functions">Functions &amp; recursion</option>
+        <option value="closures">Closures</option>
+      </select>
+    </div>
+    <textarea id="editor" spellcheck="false"></textarea>
+    <div class="run-bar">
+      <button class="run" id="runBtn">▶ Run</button>
+      <span class="run-hint">Ctrl / Cmd + Enter</span>
+    </div>
+  </section>
+
+  <section class="pane right-pane">
+    <div class="tabs">
+      <div class="tab active" data-tab="output">Output</div>
+      <div class="tab" data-tab="tokens">Tokens (live)</div>
+    </div>
+    <div class="tab-content active" id="output-content">
+      <div class="placeholder">Run a program to see output here.</div>
+    </div>
+    <div class="tab-content" id="tokens-content">
+      <div class="placeholder">Tokens update as you type — this is the lexer's actual output.</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  source text → <b>Lexer</b> → tokens → <b>Parser</b> → AST → <b>Interpreter</b> → result &nbsp;·&nbsp; every stage above runs client-side, ported line-for-line from the Python implementation
+</footer>
+
+<script src="minilang.js"></script>
+<script>
+const EXAMPLES = {
+  basics: `# Variables and arithmetic
+let x = 10;
+let y = 3;
+print x + y;
+print x % y;
+
+# Strings
+let name = "world";
+print "hello, " + name;
+
+# Conditionals
+if (x > y) {
+    print "x is bigger";
+} else {
+    print "y is bigger";
+}
+
+# Loops
+let i = 0;
+while (i < 5) {
+    print i;
+    i = i + 1;
+}
+`,
+  functions: `# Functions and recursion
+fn fib(n) {
+    if (n < 2) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+
+let i = 0;
+while (i < 10) {
+    print fib(i);
+    i = i + 1;
+}
+
+fn greet(name) {
+    print "hi, " + name + "!";
+}
+
+greet("Raj");
+`,
+  closures: `# Closures: a nested function captures its enclosing scope
+fn make_adder(n) {
+    fn add(x) {
+        return x + n;
+    }
+    return add;
+}
+
+let add5 = make_adder(5);
+print add5(10);
+print add5(20);
+`,
+};
+
+const editor = document.getElementById('editor');
+const examples = document.getElementById('examples');
+const outputEl = document.getElementById('output-content');
+const tokensEl = document.getElementById('tokens-content');
+const runBtn = document.getElementById('runBtn');
+
+function loadExample(key) {
+  editor.value = EXAMPLES[key];
+  renderTokens();
+}
+examples.addEventListener('change', () => loadExample(examples.value));
+
+function renderTokens() {
+  try {
+    const tokens = tokenize(editor.value);
+    tokensEl.innerHTML = tokens
+      .filter(t => t.kind !== 'EOF')
+      .map(t => `<div class="token-row"><span>${t.line}</span><span class="kind ${t.kind}">${t.kind}</span><span class="val">${escapeHtml(t.value)}</span></div>`)
+      .join('') || '<div class="placeholder">No tokens yet.</div>';
+  } catch (e) {
+    tokensEl.innerHTML = `<div class="placeholder">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function run() {
+  const lines = [];
+  try {
+    runMiniLang(editor.value, (s) => lines.push({ text: s, err: false }));
+    outputEl.innerHTML = lines.length
+      ? lines.map(l => `<div class="line ok">${escapeHtml(l.text)}</div>`).join('')
+      : '<div class="placeholder">Program ran with no output. Try a print statement.</div>';
+  } catch (e) {
+    outputEl.innerHTML =
+      (lines.map(l => `<div class="line ok">${escapeHtml(l.text)}</div>`).join('')) +
+      `<div class="line err">${escapeHtml(e.message)}</div>`;
+  }
+  document.querySelector('.tab[data-tab="output"]').click();
+}
+
+runBtn.addEventListener('click', run);
+editor.addEventListener('input', renderTokens);
+editor.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); }
+  if (e.key === 'Tab') { e.preventDefault(); const s = editor.selectionStart, en = editor.selectionEnd; editor.value = editor.value.slice(0, s) + '    ' + editor.value.slice(en); editor.selectionStart = editor.selectionEnd = s + 4; }
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
+  });
+});
+
+loadExample('basics');
+</script>
+</body>
+</html>
